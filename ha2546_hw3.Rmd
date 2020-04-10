@@ -1,0 +1,81 @@
+---
+title: "ha2546_hw3"
+author: "Hana Akbarnejad"
+date: "4/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(viridis)
+library(ggplot2)
+library(readr)
+library(patchwork)
+
+library(caret)
+library(glmnet)
+library(MASS)
+library(e1071)
+library(pROC)
+library(AppliedPredictiveModeling)
+library(ISLR)
+
+
+
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = FALSE,
+	fig.width = 8, 
+  fig.height = 6,
+  out.width = "90%"
+)
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+```
+
+
+\newpage
+
+```{r data, include=FALSE}
+
+data(Weekly)
+weekly_data = Weekly
+head(weekly_data)
+
+weekly_data = weekly_data %>%
+  janitor::clean_names() %>% 
+  dplyr::select(direction, everything(), -today, - year)  # not including year (?)
+```
+
+### (a) Produce some graphical summaries of the Weekly data
+
+Add some data description + binary outcome (direction)
+
+```{r eda, echo=FALSE}
+
+theme1 <- transparentTheme(trans = .4)
+theme1$strip.background$col <- rgb(.0, .6, .2, .2)
+trellis.par.set(theme1)
+featurePlot(x = weekly_data[, 2:7],
+y = weekly_data$direction,
+scales = list(x=list(relation="free"),
+y=list(relation="free")),
+plot = "density", pch = "|",
+auto.key = list(columns = 2))
+```
+
+Add some description of data
+
+### (b) Use the full data set to perform a logistic regression with Direction as the response and the five Lag variables plus Volume as predictors. Do any of the predictors appear to be statistically significant? If so, which ones?
+
+```{r logistic_reg}
+
+```
+

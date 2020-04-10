@@ -1,5 +1,5 @@
 ---
-title: "ha2546_hw3"
+title: "Methods of Classification"
 author: "Hana Akbarnejad"
 date: "4/10/2020"
 output: html_document
@@ -51,7 +51,8 @@ head(weekly_data)
 
 weekly_data = weekly_data %>%
   janitor::clean_names() %>% 
-  dplyr::select(direction, everything(), -today, - year)  # not including year (?)
+  dplyr::select(direction, everything(), -today) %>%   # not including year (?)
+  mutate(direction = as.factor(direction))
 ```
 
 ### (a) Produce some graphical summaries of the Weekly data
@@ -63,7 +64,7 @@ Add some data description + binary outcome (direction)
 theme1 <- transparentTheme(trans = .4)
 theme1$strip.background$col <- rgb(.0, .6, .2, .2)
 trellis.par.set(theme1)
-featurePlot(x = weekly_data[, 2:7],
+featurePlot(x = weekly_data[, 2:8],
 y = weekly_data$direction,
 scales = list(x=list(relation="free"),
 y=list(relation="free")),
@@ -77,5 +78,65 @@ Add some description of data
 
 ```{r logistic_reg}
 
+ctrl = trainControl(method = "repeatedcv",
+                    repeats = 5,
+                    summaryFunction = twoClassSummary,
+                    classProbs = TRUE)
+
+set.seed(2020)
+
+glm_fit = train(x = weekly_data[,3:8],   # using lag variables and volume as predictors
+                y = weekly_data$direction,
+                method = "glm",
+                metric = "ROC",
+                trControl = ctrl)
+
+summary(glm_fit)
 ```
 
+lag1 and lag2 are significant
+
+### (c) Compute the confusion matrix and overall fraction of correct predictions. Briefly explain what the confusion matrix is telling you.
+
+```{r confusion_matrix}
+
+contrasts(weekly_data$direction) # to know what is 0 and what is 1>>> 0:down, 1:up
+
+# partitioning data into train and test
+train_rows = createDataPartition(y = weekly_data$direction,
+                    p = 2/3,
+                    list = FALSE)
+train_data = weekly_data[train_rows,]
+test_data = weekly_data[-train_rows,]
+
+glm_fit_train = glm(direction ~ lag1+lag2+lag3+lag4+lag5+volume,
+                   data = weekly_data,
+                   subset = train_rows,
+                   family = binomial)
+
+test_pred_prob = predict(glm_fit_train, newdata = test_data,
+                    type = "response")
+
+test_pred = rep("Down", length(test_pred_prob))
+test_pred[test_pred_prob>0.5] = "Up"
+
+confusionMatrix(data = as.factor(test_pred),
+                reference = weekly_data$direction[-train_rows],
+                positive = "Up")
+```
+
+Add explanations of confusion matrix
+
+### (d) Plot the ROC curve using the predicted probability from logistic regression and report the AUC.
+```{r roc_curve}
+
+roc_glm = roc(weekly_data$direction[-train_rows], test_pred_prob)
+plot(roc_glm, legacy.axes = TRUE, print.auc = TRUE)
+plot(smooth(roc_glm), col = 4, add = TRUE)
+
+roc_glm$auc
+```
+
+talk a little about ROC curve here...
+
+### (e) Now fit the logistic regression model using a training data period from 1990 to 2008, with Lag1 and Lag2 as the predictors. Plot the ROC curve using the held out data (that is, the data from 2009 and 2010) and report the AUC.

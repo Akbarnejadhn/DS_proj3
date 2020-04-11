@@ -140,3 +140,115 @@ roc_glm$auc
 talk a little about ROC curve here...
 
 ### (e) Now fit the logistic regression model using a training data period from 1990 to 2008, with Lag1 and Lag2 as the predictors. Plot the ROC curve using the held out data (that is, the data from 2009 and 2010) and report the AUC.
+```{r}
+
+train_year_data = weekly_data %>% 
+  filter(year %in% (1990:2008))
+
+test_year_data = weekly_data %>% 
+  filter(year %in% 2009:2010)
+
+glm_fit_train2 = glm(direction ~ lag1+lag2,
+                   data = train_year_data,
+                   family = binomial)
+
+test_pred_prob2 = predict(glm_fit_train2, newdata = test_year_data,
+                    type = "response")
+
+test_pred2 = rep("Down", length(test_pred_prob2))
+test_pred2[test_pred_prob2>0.5] = "Up"
+
+roc_glm2 = roc(test_year_data$direction, test_pred_prob2)
+plot(roc_glm2, legacy.axes = TRUE, print.auc = TRUE)
+plot(smooth(roc_glm2), col = 4, add = TRUE)
+
+roc_glm2$auc
+
+#glm caret
+set.seed(2020)
+
+model_glm = train(x = train_year_data[,3:4],
+                  y = train_year_data$direction,
+                  method = "glm",
+                  metric = "ROC",
+                  trControl = ctrl)
+```
+
+Add some explainations...
+
+### Repeat (f) using LDA and QDA
+
+**LDA**
+```{r lda}
+
+lda_fit = lda(direction~ lag1+lag2,
+              data = train_year_data)
+plot(lda_fit)
+
+lda_pred = predict(lda_fit, newdata = test_year_data)
+roc_lda = roc(test_year_data$direction, lda_pred$posterior[,2],
+              levels = c("Down", "Up"))
+
+plot(roc_lda, legacy.axes = TRUE, print.auc = TRUE)
+plot(smooth(roc_lda), col = 4, add = TRUE)
+
+#LDA caret
+set.seed(2020)
+
+model_lda = train(x = train_year_data[,3:4],
+                y = train_year_data$direction,
+                method = "lda",
+                metric = "ROC",
+                trControl = ctrl)
+```
+
+
+**QDA**
+```{r qda}
+
+qda_fit = qda(direction~ lag1+lag2,
+              data = train_year_data)
+
+qda_pred = predict(qda_fit, newdata = test_year_data)
+roc_qda = roc(test_year_data$direction, qda_pred$posterior[,2],
+              levels = c("Down", "Up"))
+
+plot(roc_qda, legacy.axes = TRUE, print.auc = TRUE)
+plot(smooth(roc_qda), col = 4, add = TRUE)
+
+
+#QDA caret
+set.seed(2020)
+
+model_qda = train(x = train_year_data[,3:4],
+                  y = train_year_data$direction,
+                  method = "qda",
+                  metric = "ROC",
+                  trControl = ctrl)
+```
+
+### Repeat (e) using KNN.
+```{r knn}
+
+#KNN caret
+set.seed(2020)
+
+model_knn = train(x = train_year_data[,3:4],
+                  y = train_year_data$direction,
+                  method = "knn",
+                  preProcess = c("center","scale"),
+                  tuneGrid = data.frame(k = seq(1,300,by=5)),
+                  trControl = ctrl)
+ggplot(model_knn) # why does it look like this
+```
+
+### Model comparison
+```{r}
+
+res = resamples(list(GLM = model_glm,
+                LDA = model_lda,
+                QDA = model_qda,
+                KNN = model_knn))
+summary(res)
+```
+

@@ -2,7 +2,7 @@
 title: "Methods of Classification"
 author: "Hana Akbarnejad"
 date: "4/10/2020"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -17,7 +17,6 @@ library(patchwork)
 library(caret)
 library(glmnet)
 library(MASS)
-library(e1071)
 library(pROC)
 library(AppliedPredictiveModeling)
 library(ISLR)
@@ -55,14 +54,16 @@ weekly_data = weekly_data %>%
   mutate(direction = as.factor(direction))
 ```
 
-### (a) Produce some graphical summaries of the Weekly data
+In this exercise, I have been working with *Weekly* dataset from *ISLR* package. The dataset contains data about Weekly percentage returns for the S&P 500 stock index between 1990 and 2010 and it has `r nrow(weekly_data)` rowns and `r ncol(weekly_data)` columns. We consider a binary outcome (*direction*) with two levels: Up and Down, 5 *lag* variables (1 to 5), *year*, and *volume* as predictors. 
 
-Add some data description + binary outcome (direction)
+###  Part (a)
+
+In this part, I included a graphical summary of the *Weekly* data:
 
 ```{r eda, echo=FALSE}
 
-theme1 <- transparentTheme(trans = .4)
-theme1$strip.background$col <- rgb(.0, .6, .2, .2)
+theme1 = transparentTheme(trans = .4)
+theme1$strip.background$col = rgb(.0, .6, .2, .2)
 trellis.par.set(theme1)
 featurePlot(x = weekly_data[, 2:8],
 y = weekly_data$direction,
@@ -72,18 +73,20 @@ plot = "density", pch = "|",
 auto.key = list(columns = 2))
 ```
 
-Add some description of data
+The above plots plot marginal density functions within each response class for each predictor. We can observe that Up and Down classes of response have similar denisty functions for each predictor and there are a lot of overlaps within blue and red curves. Also, we can see that lag variables are almost normally distributed and we can observe positive skewness in volume variable. 
 
-### (b) Use the full data set to perform a logistic regression with Direction as the response and the five Lag variables plus Volume as predictors. Do any of the predictors appear to be statistically significant? If so, which ones?
+### Part (b)
 
-```{r logistic_reg}
+In this part, I used the full dataset to perform a logistic regression with *direction* as the response and the five *Lag* variables and *Volume* as predictors.
+
+```{r logistic_reg, echo=FALSE}
+
+set.seed(2020)
 
 ctrl = trainControl(method = "repeatedcv",
                     repeats = 5,
                     summaryFunction = twoClassSummary,
                     classProbs = TRUE)
-
-set.seed(2020)
 
 glm_fit = train(x = weekly_data[,3:8],   # using lag variables and volume as predictors
                 y = weekly_data$direction,
@@ -94,18 +97,23 @@ glm_fit = train(x = weekly_data[,3:8],   # using lag variables and volume as pre
 summary(glm_fit)
 ```
 
-lag1 and lag2 are significant
+Using all datset, the summary of *Glm* model shows that *lag2* with p-value of 0.03 is the only significant variable at 95% significance level.
 
-### (c) Compute the confusion matrix and overall fraction of correct predictions. Briefly explain what the confusion matrix is telling you.
+### Part (c)
 
-```{r confusion_matrix}
+In this part, I will take a look at the confusion matrix and what it tells us about the model.
 
-contrasts(weekly_data$direction) # to know what is 0 and what is 1>>> 0:down, 1:up
+To do so, I have partitioned data into training and test (2/3-1/3), and refitted glm model on same variables as part (b) which is lag variables and volume. 
+
+```{r confusion_matrix, echo=FALSE}
+
+zero_one = contrasts(weekly_data$direction) # to know what is 0 and what is 1>>> 0:down, 1:up
 
 # partitioning data into train and test
 train_rows = createDataPartition(y = weekly_data$direction,
                     p = 2/3,
                     list = FALSE)
+
 train_data = weekly_data[train_rows,]
 test_data = weekly_data[-train_rows,]
 
@@ -125,22 +133,27 @@ confusionMatrix(data = as.factor(test_pred),
                 positive = "Up")
 ```
 
-Add explanations of confusion matrix
+The confusion matrix provided above shows the accuracy of 0.54 which means that 54% of data ( with 95% CI of (0.48, 0.59)) is correctly classified which is not very high and it shows that Glm model is probably not the best model to be used here. We also have No Information Rate of 0.55 which is a feature of data and shows the largest proportion (max) of each class. Here this number shows the the proportion of *Up* observations because most of the observations are in that class. We have a large p-value which shows that this prediction is not very meaningful and the accuracy is not significantly larger than the no information rate. Kappa value shows consistency of predicted and observed values. The Kappa value here is -0.023 which shows that these two values are not in agreement and that the agreement is even worse than random and the prediction is not meaningful. We observe a very high sensitivity(0.93) which means we do not have many false negatives and a very low specificity(0.04) which means we have many false-positives in prediction using this model. Also we have PPV of 0.55 and NPV of 0.35. These results show that the classification model is not performing perfectly and it might be useful if we can consider other methods of classification.
 
-### (d) Plot the ROC curve using the predicted probability from logistic regression and report the AUC.
-```{r roc_curve}
+### Part (d) 
+
+In this part, I have plotted the ROC curve using the predicted probability from logistic regression:
+
+```{r roc_curve, echo=FALSE}
 
 roc_glm = roc(weekly_data$direction[-train_rows], test_pred_prob)
 plot(roc_glm, legacy.axes = TRUE, print.auc = TRUE)
 plot(smooth(roc_glm), col = 4, add = TRUE)
 
-roc_glm$auc
+glm_auc = roc_glm$auc
 ```
 
-talk a little about ROC curve here...
+It can be observed that `r glm_auc`. We usually consider AUC of 0.8 or higher as good, so this value is pretty low and shows that the classification model is not performing very well.
 
-### (e) Now fit the logistic regression model using a training data period from 1990 to 2008, with Lag1 and Lag2 as the predictors. Plot the ROC curve using the held out data (that is, the data from 2009 and 2010) and report the AUC.
-```{r}
+### Part (e) 
+
+In this part, I have fitted logistic regression model again, but this time using a training data period from 1990 to 2008, with Lag1 and Lag2 as the predictors. Then I plotted the ROC curve using the held out data (that is, the data from 2009 and 2010).
+```{r, echo=FALSE}
 
 train_year_data = weekly_data %>% 
   filter(year %in% (1990:2008))
@@ -152,6 +165,8 @@ glm_fit_train2 = glm(direction ~ lag1+lag2,
                    data = train_year_data,
                    family = binomial)
 
+summary(glm_fit_train2)
+
 test_pred_prob2 = predict(glm_fit_train2, newdata = test_year_data,
                     type = "response")
 
@@ -162,7 +177,7 @@ roc_glm2 = roc(test_year_data$direction, test_pred_prob2)
 plot(roc_glm2, legacy.axes = TRUE, print.auc = TRUE)
 plot(smooth(roc_glm2), col = 4, add = TRUE)
 
-roc_glm2$auc
+roc_glm2_auc = roc_glm2$auc
 
 #glm caret
 set.seed(2020)
@@ -174,12 +189,14 @@ model_glm = train(x = train_year_data[,3:4],
                   trControl = ctrl)
 ```
 
-Add some explainations...
+Doing so, it can be observed that neither lag1 or lag2 are significant anymore when fitting glm. Also the ROC curve above shows `r roc_glm2_auc`, which is also not very good when predicting the direction od 2009 and 2010 using data from 1990 to 2008. 
 
-### Repeat (f) using LDA and QDA
+### Part (f)
+
+In this part, I repeat part (e) using LDA and QDA methods instead of Glm, still using lag1 and lah2 as predictors.
 
 **LDA**
-```{r lda}
+```{r lda, echo=FALSE}
 
 lda_fit = lda(direction~ lag1+lag2,
               data = train_year_data)
@@ -192,6 +209,8 @@ roc_lda = roc(test_year_data$direction, lda_pred$posterior[,2],
 plot(roc_lda, legacy.axes = TRUE, print.auc = TRUE)
 plot(smooth(roc_lda), col = 4, add = TRUE)
 
+lda_auc = roc_lda$auc
+
 #LDA caret
 set.seed(2020)
 
@@ -202,9 +221,10 @@ model_lda = train(x = train_year_data[,3:4],
                 trControl = ctrl)
 ```
 
+As above ROC curve shows, we get `r lda_auc` using LDA, which is pretty similar to AUC value using Glm method.
 
 **QDA**
-```{r qda}
+```{r qda, echo=FALSE}
 
 qda_fit = qda(direction~ lag1+lag2,
               data = train_year_data)
@@ -215,6 +235,8 @@ roc_qda = roc(test_year_data$direction, qda_pred$posterior[,2],
 
 plot(roc_qda, legacy.axes = TRUE, print.auc = TRUE)
 plot(smooth(roc_qda), col = 4, add = TRUE)
+
+qda_auc = roc_qda$auc
 
 
 #QDA caret
@@ -227,8 +249,12 @@ model_qda = train(x = train_year_data[,3:4],
                   trControl = ctrl)
 ```
 
-### Repeat (e) using KNN.
-```{r knn}
+As above ROC curve shows, we get `r qda_auc` using QDA, which is pretty similar to AUC value using LDA and Glm methods.
+
+### Part (g)
+
+In this part, I repeated the procedure using KNN.
+```{r knn, echo=FALSE}
 
 #KNN caret
 set.seed(2020)
@@ -242,8 +268,9 @@ model_knn = train(x = train_year_data[,3:4],
 ggplot(model_knn) # why does it look like this
 ```
 
-### Model comparison
-```{r}
+
+### Model comparison and discussion
+```{r, echo=FALSE}
 
 res = resamples(list(GLM = model_glm,
                 LDA = model_lda,
@@ -252,7 +279,7 @@ res = resamples(list(GLM = model_glm,
 summary(res)
 ```
 
-```{r}
+```{r, echo=FALSE}
 
 glm.pred = predict(model_glm, newdata = test_year_data, type = "prob")[,2]
 lda.pred = predict(model_lda, newdata = test_year_data, type = "prob")[,2]
@@ -279,4 +306,4 @@ legend("bottomright", legend = paste0(modelNames, ": ", round(auc,3)),
        col = 1:6, lwd = 2)
 ```
 
-Add explanation...
+Comparing models built using *caret()*, we can observe that **KNN** model has the best performance with AUC of 0.565. However, the AUC values for other models do not have a considerable difference with values of 0.557 for LDA, 0.556 for Glm, and 0.529 for QDA. Also, even KNN with the highest value, does not have a high value for this model to be considered a perfect classifying model. So, we can conclude that the predictive ability of all these models are not very different from each other.

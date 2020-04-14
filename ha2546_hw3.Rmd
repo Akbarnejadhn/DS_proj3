@@ -148,7 +148,7 @@ plot(smooth(roc_glm), col = 4, add = TRUE)
 glm_auc = roc_glm$auc
 ```
 
-It can be observed that `r glm_auc`. We usually consider AUC of 0.8 or higher as good, so this value is pretty low and shows that the classification model is not performing very well.
+It can be observed that AUC is `r glm_auc`. We usually consider AUC of 0.8 or higher as good, so this value is pretty low and shows that the classification model is not performing very well.
 
 ### Part (e) 
 
@@ -189,7 +189,7 @@ model_glm = train(x = train_year_data[,3:4],
                   trControl = ctrl)
 ```
 
-Doing so, it can be observed that neither lag1 or lag2 are significant anymore when fitting glm. Also the ROC curve above shows `r roc_glm2_auc`, which is also not very good when predicting the direction od 2009 and 2010 using data from 1990 to 2008. 
+Doing so, it can be observed that neither lag1 or lag2 are significant anymore when fitting glm. Also the ROC curve above shows AUC value of `r roc_glm2_auc`, which is also not very good when predicting the direction od 2009 and 2010 using data from 1990 to 2008. 
 
 ### Part (f)
 
@@ -221,7 +221,7 @@ model_lda = train(x = train_year_data[,3:4],
                 trControl = ctrl)
 ```
 
-As above ROC curve shows, we get `r lda_auc` using LDA, which is pretty similar to AUC value using Glm method.
+As above ROC curve shows, we get AUC of `r lda_auc` using LDA, which is pretty similar to AUC value using Glm method.
 
 **QDA**
 ```{r qda, echo=FALSE}
@@ -249,7 +249,7 @@ model_qda = train(x = train_year_data[,3:4],
                   trControl = ctrl)
 ```
 
-As above ROC curve shows, we get `r qda_auc` using QDA, which is pretty similar to AUC value using LDA and Glm methods.
+As above ROC curve shows, we get the area under the curve of `r qda_auc` using QDA, which is pretty similar to AUC value using LDA and Glm methods.
 
 ### Part (g)
 
@@ -263,11 +263,14 @@ model_knn = train(x = train_year_data[,3:4],
                   y = train_year_data$direction,
                   method = "knn",
                   preProcess = c("center","scale"),
-                  tuneGrid = data.frame(k = seq(1,300,by=5)),
+                  tuneGrid = data.frame(k = seq(1,500,by=5)),
                   trControl = ctrl)
 ggplot(model_knn) # why does it look like this
+k_bestTune = model_knn$bestTune
+
 ```
 
+To find the best tuning parameter, I used the grid from 1 to 600, however, we can observe that the plot above does not reach a steady state or a decreasing effect. Theoretically, I should extend the grid till I get the desired shape in the plot but when extending the grid to beyond 500, I get the error regarding the presence of too many ties in knn which shows that the method cannot perform well for the values beyond 500. So, I have to stop at the maximum value that the method can run (500) which gives me the tuning parameter of `r k_bestTune`.
 
 ### Model comparison and discussion
 ```{r, echo=FALSE}
@@ -277,9 +280,12 @@ res = resamples(list(GLM = model_glm,
                 QDA = model_qda,
                 KNN = model_knn))
 summary(res)
+bwplot(res)
 ```
 
-```{r, echo=FALSE}
+Comparing models built using *caret()* and training data, we can observe that **LDA** model has the best performance considering ROC value with the highest mean and median values. **GLM** model has ROC value which is very close to LDA value. However, the ROC values for other models do not have a considerable difference and are in a close range. We can conclude that the predictive ability of all these models are not very different from each other. The below ROC curve also compare performace of models using test data.
+
+```{r, echo=FALSE, message=FALSE}
 
 glm.pred = predict(model_glm, newdata = test_year_data, type = "prob")[,2]
 lda.pred = predict(model_lda, newdata = test_year_data, type = "prob")[,2]
@@ -306,4 +312,3 @@ legend("bottomright", legend = paste0(modelNames, ": ", round(auc,3)),
        col = 1:6, lwd = 2)
 ```
 
-Comparing models built using *caret()*, we can observe that **KNN** model has the best performance with AUC of 0.565. However, the AUC values for other models do not have a considerable difference with values of 0.557 for LDA, 0.556 for Glm, and 0.529 for QDA. Also, even KNN with the highest value, does not have a high value for this model to be considered a perfect classifying model. So, we can conclude that the predictive ability of all these models are not very different from each other.
